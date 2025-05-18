@@ -40,6 +40,8 @@ import {
 } from '../helpers/utils/get-user-channels-permissions';
 import { patchEntity } from '../helpers/utils/patch-entity';
 
+import { RequestContextCacheService } from '../../cache/request-context-cache.service';
+
 import { ChannelService } from './channel.service';
 
 /**
@@ -56,6 +58,7 @@ export class RoleService {
         private listQueryBuilder: ListQueryBuilder,
         private configService: ConfigService,
         private eventBus: EventBus,
+        private requestContextCache: RequestContextCacheService,
     ) {}
 
     async initRoles() {
@@ -212,7 +215,10 @@ export class RoleService {
         const user = await this.connection.getEntityOrThrow(ctx, User, ctx.activeUserId, {
             relations: ['roles', 'roles.channels'],
         });
-        const userChannels = getUserChannelsPermissions(user);
+        const cacheKey = `RoleService.getUserChannelsPermissions(${ctx.activeUserId})`;
+        const userChannels = await this.requestContextCache.get(ctx, cacheKey, () =>
+            getUserChannelsPermissions(user),
+        );
         const channel = userChannels.find(c => idsAreEqual(c.id, channelId));
         if (!channel) {
             return [];
